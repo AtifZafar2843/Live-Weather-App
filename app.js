@@ -1,11 +1,13 @@
 // API Configuration
-const API_KEY = 'YOUR_API_KEY'; // Replace with your OpenWeatherMap API key
+const API_KEY = 'b107a4d9492a3333641b70433c0e79e1'; // Replace with your OpenWeatherMap API key
 const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 const GEOCODING_URL = 'https://api.openweathermap.org/geo/1.0/direct';
+const REVERSE_GEOCODING_URL = 'https://api.openweathermap.org/geo/1.0/reverse';
 
 // DOM Elements
 const cityInput = document.getElementById('cityInput');
 const searchBtn = document.getElementById('searchBtn');
+const locationBtn = document.getElementById('locationBtn');
 const loadingSpinner = document.getElementById('loadingSpinner');
 const errorMessage = document.getElementById('errorMessage');
 const weatherCard = document.getElementById('weatherCard');
@@ -27,6 +29,7 @@ const windSpeed = document.getElementById('windSpeed');
 
 // Event Listeners
 searchBtn.addEventListener('click', handleSearch);
+locationBtn.addEventListener('click', handleLocationClick);
 cityInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         handleSearch();
@@ -55,6 +58,58 @@ document.addEventListener('click', (e) => {
         suggestionsContainer.style.display = 'none';
     }
 });
+
+// Location Functions
+async function handleLocationClick() {
+    if (!navigator.geolocation) {
+        showError('Geolocation is not supported by your browser');
+        return;
+    }
+
+    try {
+        showLoading();
+        const position = await getCurrentPosition();
+        const { latitude, longitude } = position.coords;
+        
+        // Get city name from coordinates
+        const cityData = await getCityFromCoords(latitude, longitude);
+        if (cityData) {
+            cityInput.value = `${cityData.name}, ${cityData.country}`;
+            const weatherData = await fetchWeatherData(`${cityData.name},${cityData.country}`);
+            displayWeatherData(weatherData);
+        }
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function getCurrentPosition() {
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        });
+    });
+}
+
+async function getCityFromCoords(lat, lon) {
+    try {
+        const url = `${REVERSE_GEOCODING_URL}?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error('Failed to get city name');
+        }
+
+        const data = await response.json();
+        return data[0];
+    } catch (error) {
+        throw new Error('Failed to get city name from coordinates');
+    }
+}
 
 // Main Functions
 async function handleSearch() {
